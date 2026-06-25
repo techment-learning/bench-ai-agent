@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bench AI Agent — Training Head Command Centre</title>
+<style>
+  :root {
+    --navy:#1F2D3D; --blue:#2E5FA3; --teal:#1D9E75; --amber:#F59E0B;
+    --red:#E24B4A; --orange:#E8590C; --purple:#7F77DD; --maroon:#7B1F1F;
+    --bg:#F7F6F3; --surface:#FFFFFF; --border:#E2E0D8; --text:#1F2D3D; --muted:#6B7280;
+    --lt:#E1F5EE; --la:#FAEEDA; --lr:#FCEBEB; --lp:#EEEDFE; --lm:#F5E0E0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+  .topbar{background:var(--navy);color:white;padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .tl{display:flex;align-items:center;gap:12px;}
+  .logo{width:32px;height:32px;background:var(--teal);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:white;}
+  .t1{font-weight:700;font-size:15px;} .t2{font-size:11px;color:#94A3B8;}
+  .topbar-right{display:flex;align-items:center;gap:8px;}
+  .top-pill{font-size:11px;border-radius:20px;padding:5px 13px;border:1px solid rgba(255,255,255,0.2);color:#94A3B8;white-space:nowrap;}
+  .top-pill.loaded{background:rgba(29,158,117,0.25);border-color:var(--teal);color:#6EE7B7;}
+  .top-btn{font-size:11px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:5px 11px;color:white;cursor:pointer;}
+  .top-btn:hover{background:rgba(255,255,255,0.2);}
+
+  .main{display:flex;flex:1;overflow:hidden;}
+  .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;padding-bottom:12px;}
+  .ss{padding:16px 14px 6px;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;}
+  .ni{display:flex;align-items:center;gap:9px;padding:9px 14px;cursor:pointer;border-radius:7px;margin:1px 8px;font-size:13px;color:var(--muted);transition:all .15s;user-select:none;}
+  .ni:hover{background:var(--bg);color:var(--text);}
+  .ni.active{background:#EEF3FB;color:var(--blue);font-weight:600;}
+  .ni-icon{width:20px;text-align:center;font-size:15px;}
+  .nb{margin-left:auto;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--red);color:white;}
+  .nb.am{background:var(--amber);}
+  .sd{height:1px;background:var(--border);margin:8px 14px;}
+  .panel{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative;}
+
+  /* ── Upload screen — shown first, full panel ── */
+  .upload-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:0;}
+  .upload-hero{max-width:480px;width:100%;text-align:center;}
+  .upload-icon-wrap{width:72px;height:72px;background:var(--lt);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 20px;}
+  .upload-title{font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px;}
+  .upload-sub{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:28px;}
+  .upload-drop{border:2px dashed var(--border);border-radius:16px;padding:36px 40px;cursor:pointer;transition:all .2s;background:var(--surface);}
+  .upload-drop:hover,.upload-drop.over{border-color:var(--blue);background:#EEF3FB;}
+  .upload-drop-icon{font-size:32px;margin-bottom:10px;}
+  .upload-drop-text{font-size:14px;font-weight:600;color:var(--navy);margin-bottom:4px;}
+  .upload-drop-sub{font-size:12px;color:var(--muted);}
+  .upload-cta{margin-top:16px;background:var(--blue);color:white;border:none;padding:12px 32px;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;width:100%;}
+  .upload-cta:hover{background:#1D4F8C;}
+  .upload-note{margin-top:14px;font-size:12px;color:var(--muted);}
+  input[type=file]{display:none;}
+
+  /* ── Chat ── */
+  .chat-view{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+  .chat-msgs{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;}
+  .msg{display:flex;gap:10px;}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse;max-width:78%;}
+  .msg.ai{max-width:94%;}
+  .av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;margin-top:2px;}
+  .av.ai{background:var(--navy);color:white;} .av.user{background:var(--blue);color:white;}
+  .bub{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 16px;font-size:13px;line-height:1.7;}
+  .msg.user .bub{background:var(--blue);color:white;border-color:var(--blue);}
+  .bub table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;}
+  .bub th{background:var(--navy);color:white;padding:7px 11px;text-align:left;font-size:11px;}
+  .bub td{padding:7px 11px;border-bottom:1px solid var(--border);}
+  .bub tr:last-child td{border-bottom:none;}
+  .bub tr:nth-child(even) td{background:var(--bg);}
+  .tag{display:inline-block;font-size:11px;font-weight:600;padding:2px 9px;border-radius:10px;margin:2px 1px;}
+  .tag-red{background:var(--lr);color:var(--red);}
+  .tag-amber{background:var(--la);color:var(--orange);}
+  .tag-green{background:var(--lt);color:var(--teal);}
+  .tag-purple{background:var(--lp);color:var(--purple);}
+  .tag-blue{background:#EEF3FB;color:var(--blue);}
+  .tag-maroon{background:var(--lm);color:var(--maroon);}
+  .tag-grey{background:#F1F1EF;color:var(--muted);}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;padding:4px 20px 12px;}
+  .chip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:7px 15px;font-size:12px;cursor:pointer;transition:all .15s;color:var(--text);white-space:nowrap;}
+  .chip:hover{border-color:var(--blue);color:var(--blue);background:#EEF3FB;}
+  .ibar{padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);display:flex;gap:10px;align-items:flex-end;}
+  .ibar textarea{flex:1;border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;resize:none;outline:none;line-height:1.5;max-height:120px;transition:border .15s;color:var(--text);background:var(--bg);}
+  .ibar textarea:focus{border-color:var(--blue);background:white;}
+  .sbtn{background:var(--blue);color:white;border:none;border-radius:10px;width:42px;height:42px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .sbtn:hover{background:#1D4F8C;}
+
+  /* ── Dashboard ── */
+  .dash-view{flex:1;overflow-y:auto;padding:20px;}
+  .krow{display:grid;gap:12px;margin-bottom:14px;}
+  .krow.c4{grid-template-columns:repeat(4,1fr);}
+  .krow.c2{grid-template-columns:repeat(2,1fr);}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+  .kpi-l{font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:500;}
+  .kpi-v{font-size:28px;font-weight:800;line-height:1;}
+  .kpi-s{font-size:11px;color:var(--muted);margin-top:4px;}
+  .sec-t{font-size:13px;font-weight:700;color:var(--navy);margin:18px 0 10px;}
+  .rtable{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .rtable table{width:100%;border-collapse:collapse;font-size:12px;}
+  .rtable th{background:var(--navy);color:white;padding:9px 12px;text-align:left;font-size:11px;font-weight:500;}
+  .rtable td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .rtable tr:last-child td{border-bottom:none;}
+  .rtable tr:hover td{background:var(--bg);}
+  .alert-box{border-radius:10px;padding:12px 16px;margin-bottom:10px;font-size:13px;line-height:1.6;}
+  .alert-crit{background:var(--lm);border-left:4px solid var(--maroon);}
+  .alert-action{background:var(--lr);border-left:4px solid var(--red);}
+  .alert-watch{background:var(--la);border-left:4px solid var(--amber);}
+  .alert-ok{background:var(--lt);border-left:4px solid var(--teal);}
+  .rec-box{background:#EEF3FB;border:1px solid #C7D9F5;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:12px;color:var(--blue);}
+  .rec-box strong{display:block;margin-bottom:4px;}
+  .typing{display:flex;gap:5px;align-items:center;padding:3px 0;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:bounce .9s infinite;}
+  .dot:nth-child(2){animation-delay:.15s;} .dot:nth-child(3){animation-delay:.3s;}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+  .hidden{display:none!important;} @keyframes spin{to{transform:rotate(360deg)}}
+  ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px;}
+  @media print{.sidebar,.topbar,.chips,.ibar,.top-btn{display:none!important;}.dash-view{overflow:visible!important;height:auto!important;}.main,.panel{overflow:visible!important;height:auto!important;}body{height:auto!important;overflow:visible!important;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tl">
+    <div class="logo">B</div>
+    <div><div class="t1">Bench AI Agent</div><div class="t2">Training Head Command Centre</div></div>
+  </div>
+  <div class="topbar-right">
+    <div class="top-pill" id="filePill">📂 No data loaded</div>
+    <button class="top-btn" id="reloadBtn" style="display:none;" onclick="autoFetch()" style="display:none">↻ Load new file</button>
+    <button class="top-btn" onclick="exportPDF()">⬇ Export PDF</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="ss">Workspace</div>
+    <div class="ni active" id="nav-chat" onclick="switchView('chat')"><span class="ni-icon">💬</span> Ask Agent</div>
+    <div class="ni" id="nav-dash" onclick="switchView('dash')"><span class="ni-icon">📊</span> Dashboard</div>
+    <div class="sd"></div>
+    <div class="ss">Quick Actions</div>
+    <div class="ni" onclick="runQuery('available')"><span class="ni-icon">✅</span> Available Now</div>
+    <div class="ni" onclick="runQuery('aging')"><span class="ni-icon">🚨</span> Aging Bench <span class="nb" id="badge-aging">—</span></div>
+    <div class="ni" onclick="runQuery('reviews')"><span class="ni-icon">📋</span> Pool Reviews <span class="nb am" id="badge-reviews">—</span></div>
+    <div class="ni" onclick="runQuery('demand')"><span class="ni-icon">🎯</span> Match Demand</div>
+    <div class="sd"></div>
+    <div class="ss">Reports</div>
+    <div class="ni" onclick="runQuery('report')"><span class="ni-icon">📄</span> Leadership Report</div>
+    <div class="ni" onclick="runQuery('skills')"><span class="ni-icon">🧠</span> Skill Gap Analysis</div>
+    <div class="sd"></div>
+    <div class="ss">Data</div>
+    <div class="ni" onclick="reloadFile()"><span class="ni-icon">📂</span> Load / Refresh File</div>
+    <div style="padding:10px 14px;font-size:11px;color:var(--muted);line-height:1.5;" id="lastUpdatedLabel"></div>
+  </div>
+
+  <div class="panel">
+
+    <!-- AUTO-LOAD SCREEN -->
+    <div class="upload-screen" id="uploadScreen">
+      <div class="upload-hero" style="text-align:center;max-width:440px;">
+        <div class="upload-icon-wrap" id="loadIcon" style="font-size:32px;">📊</div>
+        <div class="upload-title" id="loadTitle">Loading Bench Data…</div>
+        <div class="upload-sub" id="loadSub">Fetching latest data from SharePoint.<br/>This takes just a few seconds.</div>
+        <div id="loadSpinner" style="width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:20px auto 12px;"></div>
+        <div id="loadMsg" style="font-size:12px;color:var(--muted);">Connecting…</div>
+
+        <!-- Error state — hidden by default -->
+        <div id="loadError" style="display:none;margin-top:20px;">
+          <div style="background:var(--lr);border:1px solid #F5BFBF;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.8;text-align:left;margin-bottom:14px;">
+            <strong id="errTitle" style="color:var(--maroon);">⚠ Could not load</strong><br/>
+            <span id="errDetail" style="color:var(--muted);font-size:12px;"></span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="upload-cta" onclick="autoFetch()" style="width:100%;">↻ Try Again</button>
+            <label for="fileInput" class="upload-cta"
+              style="width:100%;background:var(--surface);color:var(--blue);border:2px solid var(--blue);cursor:pointer;border-radius:9px;padding:12px;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;">
+              📂 Upload File Manually
+            </label>
+          </div>
+        </div>
+        <div style="margin-top:16px;font-size:11px;color:var(--muted);">✓ Data stays in your browser &nbsp;·&nbsp; ✓ Secured by SharePoint permissions</div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="chat-view hidden" id="chatView">
+      <div class="chat-msgs" id="chatMsgs"></div>
+      <div class="chips">
+        <div class="chip" onclick="sendChip(this)">Who's available right now?</div>
+        <div class="chip" onclick="sendChip(this)">Show critical aging resources</div>
+        <div class="chip" onclick="sendChip(this)">Who's been on bench the longest?</div>
+        <div class="chip" onclick="sendChip(this)">Match bench to demands</div>
+        <div class="chip" onclick="sendChip(this)">Pool review status</div>
+        <div class="chip" onclick="sendChip(this)">Leadership report</div>
+        <div class="chip" onclick="sendChip(this)">Skill gap analysis</div>
+      </div>
+      <div class="ibar">
+        <textarea id="chatInput" rows="1" placeholder="Ask anything about your bench resources…"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="sbtn" onclick="sendMessage()">&#10148;</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="dash-view hidden" id="dashView">
+      <div id="dashContent"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+var BD = null;
+
+// ── SharePoint direct URL ─────────────────────────────────────────────
+// SharePoint URL — used for direct download link
+var SP_SHARE_URL = 'https://techment0-my.sharepoint.com/:x:/g/personal/sreejit_panicker_techment_com/IQBB9kzkWkiLRaha4FmmyqniAVwqY7uW93htPcw9Re8HOD8?e=Z20BvE';
+
+// ── SharePoint auto-fetch (works from external domains like GitHub Pages) ──
+// The share token ?e=Z20BvE makes the file publicly downloadable to anyone
+// with the link — no M365 login needed, no CORS issue from external origin.
+// SharePoint access control still applies — revoke the share link to cut access.
+
+var SP_DOWNLOAD = 'https://techment0-my.sharepoint.com/:x:/g/personal/sreejit_panicker_techment_com/IQBB9kzkWkiLRaha4FmmyqniAVwqY7uW93htPcw9Re8HOD8?e=Z20BvE&download=1';
+
+window.addEventListener('load', function() {
+  setTimeout(autoFetch, 300); // slight delay so UI renders first
+});
+
+async function autoFetch() {
+  showLoadState('loading', 'Fetching from SharePoint…');
+  try {
+    // No credentials needed — share token authenticates the request
+    var resp = await fetch(SP_DOWNLOAD, { method: 'GET' });
+
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) {
+        showLoadError('Access denied', 'You do not have permission to view this file. Contact the Training Head.');
+      } else {
+        showLoadError('SharePoint error', 'HTTP ' + resp.status + ' — ' + resp.statusText + '. Try refreshing.');
+      }
+      return;
+    }
+
+    showLoadState('loading', 'Reading Excel data…');
+    var buffer = await resp.arrayBuffer();
+
+    if (buffer.byteLength < 1000) {
+      showLoadError('Empty file', 'SharePoint returned an empty response. The share link may have expired.');
+      return;
+    }
+
+    parseAndLoad(buffer, 'bench_resource_tracker_v3.xlsx');
+
+  } catch(err) {
+    // Network / CORS error — shouldn't happen from GitHub Pages but handle gracefully
+    showLoadError(
+      'Connection failed',
+      err.message + ' — Make sure you are connected to the internet and try again.'
+    );
+  }
+}
+
+function showLoadState(state, msg) {
+  document.getElementById('loadMsg').textContent = msg;
+  document.getElementById('loadError').style.display = 'none';
+  document.getElementById('loadSpinner').style.display = '';
+}
+
+function showLoadError(title, detail) {
+  document.getElementById('loadSpinner').style.display = 'none';
+  document.getElementById('loadIcon').textContent = '⚠️';
+  document.getElementById('loadTitle').textContent = 'Could not load data';
+  document.getElementById('loadSub').textContent = 'Something went wrong fetching from SharePoint.';
+  document.getElementById('loadMsg').textContent = '';
+  document.getElementById('errTitle').textContent = '⚠ ' + title;
+  document.getElementById('errDetail').textContent = detail;
+  document.getElementById('loadError').style.display = 'block';
+}
+
+function setLoadState() {} // stub for legacy calls
+function showCORSFallback() {} // stub
+
+
+
+// ── Auto-fetch on page load ───────────────────────────────────────────
+window.addEventListener('load', function() { showCORSFallback(); });
+
+// Multiple URL strategies — tries each in order with a short timeout
+var SP_URLS = [
+  'https://techment0-my.sharepoint.com/:x:/g/personal/sreejit_panicker_techment_com/IQBB9kzkWkiLRaha4FmmyqniAVwqY7uW93htPcw9Re8HOD8?e=Z20BvE&download=1',
+  'https://techment0-my.sharepoint.com/personal/sreejit_panicker_techment_com/Documents/Bench%20Agent/bench_resource_tracker_v3.xlsx',
+  'https://techment0-my.sharepoint.com/personal/sreejit_panicker_techment_com/_layouts/15/guestaccess.aspx?share=IQBB9kzkWkiLRaha4FmmyqniAVwqY7uW93htPcw9Re8HOD8&download=1',
+];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function parseAndLoad(buffer, filename) {
+  var wb = XLSX.read(buffer, {type:'array', cellDates:true});
+  BD = {};
+  wb.SheetNames.forEach(function(n) {
+    var ws = wb.Sheets[n];
+    if (!ws||!ws['!ref']){BD[n]=[];return;}
+    var a1 = ws['A1'] ? String(ws['A1'].v||'') : '';
+    var skip = (a1.length>15||a1.includes('—')||/MASTER|TRACKER|PIPELINE|MATRIX|LOG|REPORT|DASHBOARD/i.test(a1)) ? 1 : 0;
+    BD[n] = XLSX.utils.sheet_to_json(ws, {raw:false, defval:'', range:skip});
+  });
+  onLoaded(filename);
+}
+
+// ── Manual upload fallback ────────────────────────────────────────────
+function handleFile(e){if(e.target.files[0])processFile(e.target.files[0]);}
+function reloadFile(){autoFetch();}
+
+function processFile(file){
+  var r=new FileReader();
+  r.onload=function(e){
+    try{ parseAndLoad(e.target.result, file.name); }
+    catch(err){alert('Could not read file: '+err.message);}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function onLoaded(fname){
+  var p=document.getElementById('filePill');
+  p.textContent='✅ '+fname; p.classList.add('loaded');
+  document.getElementById('reloadBtn').style.display='';
+  document.getElementById('lastUpdatedLabel').innerHTML='🕐 Loaded<br/><strong>'+new Date().toLocaleTimeString()+'</strong><br/>'+new Date().toLocaleDateString();
+  document.getElementById('uploadScreen').classList.add('hidden');
+  document.getElementById('chatView').classList.remove('hidden');
+  document.getElementById('nav-chat').classList.add('active');
+  updateBadges(); renderDashboard();
+  addAI(answerWelcome());
+}
+
+// ── Data helpers ──────────────────────────────────────────────────────
+function getResources(){if(!BD||!BD['Bench Master'])return[];return BD['Bench Master'].filter(function(r){return String(r['Emp ID']||'').match(/^EMP\d+/)&&(r['Full Name']||r['Name']||'').trim();});}
+function getName(r){return r['Full Name']||r['Name']||'';}
+function getStatus(r){return r['Status']||'';}
+function getBenchType(r){return r['Bench Type']||'';}
+function getSkills(r){return r['Primary Skill']||'';}
+function getReadiness(r){return parseFloat(r['Skill Readiness %'])||0;}
+function getExp(r){return parseFloat(r['Experience (Yrs)'])||0;}
+function getProfile(r){return r['Profile']||r['Designation']||'';}
+function getRemarks(r){return r['Remarks']||'';}
+function isAvailable(r){return['Available','Partial Available'].includes(getStatus(r));}
+function getBenchDays(r){var raw=r['Bench Start Date'];if(!raw||raw==='')return null;var d=new Date(raw);if(!isNaN(d.getTime())&&d.getFullYear()>2000&&d.getFullYear()<2100)return Math.floor((new Date()-d)/86400000);var s=parseFloat(raw);if(!isNaN(s)&&s>40000&&s<60000){d=new Date(Date.UTC(1899,11,30)+s*86400000);return Math.floor((new Date()-d)/86400000);}return null;}
+function getTier(d){if(d===null)return null;if(d>=365)return'critical';if(d>=180)return'action';if(d>=90)return'watch';return'ontrack';}
+function tag(t,c){return'<span class="tag tag-'+c+'">'+t+'</span>';}
+function tagStatus(s){var m={'Available':'green','Partial Available':'green','In Training':'amber','On Leave':'amber','Shadow Mode':'purple','Shadow mode':'purple','Allocated':'blue'};return tag(s||'—',m[s]||'grey');}
+function tagPool(p){if(p==='Innovation Pool')return tag('Innovation','purple');if(p==='Learner Pool')return tag('Learner','amber');return'—';}
+function tagAging(r){if(getStatus(r)==='Allocated')return tag('Allocated','blue');var d=getBenchDays(r);if(d===null)return'—';if(d>=365)return tag('🚨 Critical','maroon');if(d>=180)return tag('🔴 Action','red');if(d>=90)return tag('⚠ Watch','amber');return tag('✅ On Track','green');}
+function kpiBox(v,l,s,c){return'<div class="kpi"><div class="kpi-l">'+l+'</div><div class="kpi-v" style="color:'+c+'">'+v+'</div><div class="kpi-s">'+s+'</div></div>';}
+function tbl(headers,rows){var th=headers.map(function(h){return'<th>'+h+'</th>';}).join('');var tr=rows.map(function(r){return'<tr>'+r.map(function(c){return'<td>'+c+'</td>';}).join('')+'</tr>';}).join('');return'<div class="rtable"><table><thead><tr>'+th+'</tr></thead><tbody>'+tr+'</tbody></table></div>';}
+
+function updateBadges(){var res=getResources();document.getElementById('badge-aging').textContent=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=365&&getStatus(r)!=='Allocated';}).length;document.getElementById('badge-reviews').textContent=(BD['Pool Review Log']||[]).filter(function(r){return r['Review Outcome']==='Pending';}).length;}
+
+// ── Dashboard ─────────────────────────────────────────────────────────
+function renderDashboard(){
+  var res=getResources();
+  var avail=res.filter(isAvailable).length,trng=res.filter(function(r){return getStatus(r)==='In Training';}).length,leave=res.filter(function(r){return getStatus(r)==='On Leave';}).length,shadow=res.filter(function(r){return/shadow/i.test(getStatus(r));}).length;
+  var crit=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=365&&getStatus(r)!=='Allocated';}).length,action=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=180&&d<365&&getStatus(r)!=='Allocated';}).length,watch=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=90&&d<180&&getStatus(r)!=='Allocated';}).length,ontrack=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d<90&&getStatus(r)!=='Allocated';}).length;
+  var learner=res.filter(function(r){return getBenchType(r)==='Learner Pool';}).length,innov=res.filter(function(r){return getBenchType(r)==='Innovation Pool';}).length;
+  var rows=res.map(function(r){var d=getBenchDays(r);return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),d!==null?'<strong>'+d+'d</strong>':'—',tagStatus(getStatus(r)),tagPool(getBenchType(r)),tagAging(r)];});
+  document.getElementById('dashContent').innerHTML=
+    '<div class="krow c4">'+kpiBox(res.length,'Total on Bench','All statuses','var(--navy)')+kpiBox(avail,'Available Now','Ready to allocate','var(--teal)')+kpiBox(trng,'In Training','Active programs','var(--amber)')+kpiBox(leave+shadow,'On Leave / Shadow','Unavailable','var(--orange)')+'</div>'+
+    '<div class="krow c4">'+kpiBox(crit,'🚨 Critical (1Y+)','Escalate now','var(--maroon)')+kpiBox(action,'🔴 Action (6M+)','Review this week','var(--red)')+kpiBox(watch,'⚠ Watch (3M+)','Schedule check-in','var(--orange)')+kpiBox(ontrack,'✅ On Track','Within safe window','var(--teal)')+'</div>'+
+    '<div class="krow c2">'+kpiBox(learner,'Learner Pool','3-month clock · Day 60 review','var(--amber)')+kpiBox(innov,'Innovation Pool','No duration limit','var(--purple)')+'</div>'+
+    '<div class="sec-t">All Resources</div>'+tbl(['Emp ID','Name','Profile','Bench Days','Status','Pool','Aging Alert'],rows);
+}
+
+// ── Intelligence engine ───────────────────────────────────────────────
+function answerWelcome(){var res=getResources(),avail=res.filter(isAvailable).length,crit=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=365&&getStatus(r)!=='Allocated';}).length,pend=(BD['Pool Review Log']||[]).filter(function(r){return r['Review Outcome']==='Pending';}).length,trng=res.filter(function(r){return getStatus(r)==='In Training';}).length;return'<strong>'+res.length+' resources loaded.</strong>&nbsp;&nbsp;'+tag('✅ '+avail+' Available','green')+' '+tag('🚨 '+crit+' Critical','maroon')+' '+tag('📋 '+pend+' Reviews pending','amber')+' '+tag('📚 '+trng+' In Training','purple')+'<br/><br/>Use the sidebar quick actions or type any question below. All analysis runs instantly from your file.';}
+
+function answerAvailable(){var res=getResources(),avail=res.filter(isAvailable).sort(function(a,b){return(getBenchDays(b)||0)-(getBenchDays(a)||0);});if(!avail.length)return'<strong>No available resources right now.</strong>';var full=avail.filter(function(r){return getStatus(r)==='Available';}),partial=avail.filter(function(r){return getStatus(r)==='Partial Available';});var out='<strong>'+avail.length+' resources available for allocation</strong><br/><br/>';if(full.length){out+='<strong>🟢 Fully Available ('+full.length+')</strong>';out+=tbl(['Emp ID','Name','Profile','Exp','Days','Readiness','Key Skills'],full.map(function(r){var d=getBenchDays(r),tier=d>=365?tag('🚨 '+d+'d','maroon'):d>=180?tag('🔴 '+d+'d','red'):d>=90?tag('⚠ '+d+'d','amber'):tag('✅ '+d+'d','green');return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),getExp(r)+'Y',tier,getReadiness(r)+'%',getSkills(r).substring(0,45)];}));}if(partial.length){out+='<br/><strong>🟡 Partial Available ('+partial.length+')</strong>';out+=tbl(['Emp ID','Name','Profile','Days','Remarks'],partial.map(function(r){return[r['Emp ID'],getName(r),getProfile(r),(getBenchDays(r)||'—')+'d',getRemarks(r)];}));}out+='<div class="rec-box"><strong>💡 Recommended action:</strong> Prioritise resources with 100% readiness and longest bench days. <strong>'+getName(full[0]||avail[0])+'</strong> should be mapped first.</div>';return out;}
+
+function answerAging(){var res=getResources().filter(function(r){return getStatus(r)!=='Allocated';}),tiers={critical:[],action:[],watch:[],ontrack:[]};res.forEach(function(r){var d=getBenchDays(r),t=getTier(d);if(t)tiers[t].push({r:r,d:d});});Object.keys(tiers).forEach(function(k){tiers[k].sort(function(a,b){return b.d-a.d;});});var out='<strong>Bench Aging Report</strong><br/><br/>';function sec(key,emoji,label,cls,action){var list=tiers[key];if(!list.length)return'<div class="alert-box alert-ok">'+emoji+' <strong>'+label+':</strong> No resources in this band ✓</div>';var h='<div class="alert-box alert-'+cls+'"><strong>'+emoji+' '+label+' ('+list.length+')</strong><br/>';list.forEach(function(x){h+='• <strong>'+getName(x.r)+'</strong> ('+x.r['Emp ID']+') — '+getProfile(x.r)+' · '+x.d+' days<br/>';});h+='<br/><em>→ '+action+'</em></div>';return h;}out+=sec('critical','🚨','Critical — 1 Year+','crit','Escalate to leadership immediately');out+=sec('action','🔴','Action Needed — 6–12 Months','action','Manager review this week');out+=sec('watch','⚠️','Watch — 3–6 Months','watch','Schedule check-in this week');out+=sec('ontrack','✅','On Track — Under 3 Months','ok','Monitor weekly');var maxD=0,maxR=null;res.forEach(function(r){var d=getBenchDays(r)||0;if(d>maxD){maxD=d;maxR=r;}});if(maxR)out+='<div class="rec-box"><strong>💡 Top priority:</strong> <strong>'+getName(maxR)+'</strong> at <strong>'+maxD+' days</strong> — immediate action required.</div>';return out;}
+
+function answerReviews(){var log=BD['Pool Review Log']||[],res=getResources(),learners=res.filter(function(r){return getBenchType(r)==='Learner Pool';});var pend=log.filter(function(r){return r['Review Outcome']==='Pending';}),done=log.filter(function(r){return['Exit','Release','Promoted'].includes(r['Review Outcome']);});var out='<strong>Learner Pool Review Tracker</strong><br/><br/>'+tag(learners.length+' in Learner Pool','amber')+' '+tag(pend.length+' pending','red')+' '+tag(done.filter(function(r){return r['Review Outcome']==='Promoted';}).length+' promoted','green')+' '+tag(done.filter(function(r){return['Exit','Release'].includes(r['Review Outcome']);}).length+' exited','grey')+'<br/><br/>';if(pend.length){out+='<strong>📋 Pending Reviews</strong>';out+=tbl(['Emp ID','Name','Entry Date','Review Due','Performance','Training %','Recommended'],pend.map(function(r){var p=r['Performance Rating']||'—',t=r['Training %']||'0',rec=(p==='Outstanding'||p==='Very Good'||parseFloat(t)>=70)?tag('→ Promote','green'):(p==='Below Avg'||parseFloat(t)<40)?tag('→ Exit','red'):tag('→ Review','amber');return[r['Emp ID'],r['Name']||'',r['Pool Entry Date']||'',r['Review Date (Day 60)']||'',p,t+'%',rec];}));}var logIds=log.map(function(r){return r['Emp ID'];});var unlogged=learners.filter(function(r){return!logIds.includes(r['Emp ID']);});if(unlogged.length){out+='<br/><strong>⚠ Not yet in Review Log</strong>';out+=tbl(['Emp ID','Name','Profile','Bench Days','Pool Status'],unlogged.map(function(r){return[r['Emp ID'],getName(r),getProfile(r),(getBenchDays(r)||'—')+'d',r['Pool Status']||'—'];}));}out+='<div class="rec-box"><strong>💡 Next step:</strong> Complete Day 60 reviews for all pending entries before end of this week.</div>';return out;}
+
+function answerDemand(){var demand=BD['Demand Pipeline']||[],avail=getResources().filter(function(r){return isAvailable(r)||/shadow/i.test(getStatus(r));});if(!demand.length)return'<strong>No demands in pipeline.</strong> Add open roles to the Demand Pipeline sheet.';var out='<strong>Demand vs Bench Matching</strong><br/><br/>'+tag(demand.length+' open demands','red')+' '+tag(avail.length+' available','green')+'<br/><br/>';demand.forEach(function(d){var role=d['Role Required']||'',needed=(d['Primary Skill Needed']||'').toLowerCase(),project=d['Account / Project']||'',priority=d['Priority']||'';var ptag2=priority==='Critical'?tag(priority,'maroon'):priority==='High'?tag(priority,'red'):tag(priority,'amber');var scored=avail.map(function(r){var skills=(getSkills(r)+' '+(r['Secondary Skills']||'')).toLowerCase(),score=0;needed.split(/[,\s]+/).forEach(function(kw){kw=kw.trim();if(kw.length>2&&skills.includes(kw))score+=20;});score=Math.min(score,95);if(getReadiness(r)>80)score=Math.min(score+10,98);return{r:r,score:score};}).filter(function(x){return x.score>0;}).sort(function(a,b){return b.score-a.score;});out+='<div style="margin-bottom:14px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>'+role+'</strong> — <em>'+project+'</em>&nbsp;'+ptag2+'</div>';if(scored.length){out+=tbl(['Name','Profile','Score','Skills'],scored.slice(0,3).map(function(x){var sc=x.score>=70?tag(x.score+'%','green'):x.score>=40?tag(x.score+'%','amber'):tag(x.score+'%','red');return['<strong>'+getName(x.r)+'</strong>',getProfile(x.r),sc,getSkills(x.r).substring(0,40)];}));}else{out+=tag('⚠ No match — consider hiring or upskilling','red');}out+='</div>';});out+='<div class="rec-box"><strong>💡 Recommendation:</strong> Address Critical demands first. For unmatched roles, initiate hiring or fast-track upskilling.</div>';return out;}
+
+function answerSkills(){var matrix=BD['Skill Matrix']||[];if(!matrix.length)return'<strong>Skill Matrix sheet is empty.</strong>';var cols=['React.js','Node.js','Java','Python','SQL','AWS','Azure','DevOps/K8s','Angular','QA/Selenium','Data/BI','Agile/BA','GenAI/LLM'],gaps=[],strengths=[];cols.forEach(function(sk){var scores=matrix.map(function(r){return parseFloat(r[sk])||0;}).filter(function(v){return v>0;});var avg=scores.length?scores.reduce(function(a,b){return a+b;},0)/scores.length:0,count=scores.length;if(avg<1.5||count<3)gaps.push({skill:sk,avg:avg.toFixed(1),count:count});else if(avg>=3)strengths.push({skill:sk,avg:avg.toFixed(1),count:count});});var out='<strong>Skill Gap Analysis</strong><br/><br/><strong>⚠ Critical Gaps</strong>';if(gaps.length)out+=tbl(['Skill','Avg (out of 4)','Resources','Severity'],gaps.map(function(g){var sev=g.count<2?tag('Critical','maroon'):g.avg<1?tag('High','red'):tag('Medium','amber');return['<strong>'+g.skill+'</strong>',g.avg,g.count,sev];}));else out+='<br/>'+tag('No critical gaps','green')+'<br/>';if(strengths.length){out+='<br/><strong>💪 Strengths</strong>';out+=tbl(['Skill','Avg','Resources'],strengths.map(function(g){return['<strong>'+g.skill+'</strong>',g.avg,g.count];}));}out+='<div class="rec-box"><strong>💡 Focus:</strong> '+(gaps[0]?'<strong>'+gaps[0].skill+'</strong> is the biggest gap — initiate group training immediately.':'All key skills covered.')+'</div>';return out;}
+
+function answerReport(){var res=getResources(),avail=res.filter(isAvailable),crit=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=365&&getStatus(r)!=='Allocated';}),action=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=180&&d<365&&getStatus(r)!=='Allocated';}),watch=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=90&&d<180&&getStatus(r)!=='Allocated';}),learner=res.filter(function(r){return getBenchType(r)==='Learner Pool';}),innov=res.filter(function(r){return getBenchType(r)==='Innovation Pool';}),demand=BD['Demand Pipeline']||[],open=demand.filter(function(d){return d['Status']==='Open';}),critD=open.filter(function(d){return d['Priority']==='Critical';}),pend=(BD['Pool Review Log']||[]).filter(function(r){return r['Review Outcome']==='Pending';});var today=new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});var maxR=null,maxD=0;res.forEach(function(r){var d=getBenchDays(r)||0;if(d>maxD&&getStatus(r)!=='Allocated'){maxD=d;maxR=r;}});var out='<strong style="font-size:15px;">📄 Weekly Bench Leadership Report</strong><br/><span style="color:var(--muted);font-size:12px;">'+today+' &nbsp;·&nbsp; Confidential</span><br/><br/>';out+='<strong>1. Executive Summary</strong><br/>Bench has <strong>'+res.length+' resources</strong>, <strong>'+avail.length+' immediately available</strong>. ';out+=crit.length?'<strong>'+crit.length+' resources exceed 1 year</strong> — urgent action needed. ':'No resources past 1-year mark. ';out+=open.length?open.length+' open demands, '+critD.length+' Critical priority.':'No open demands.';out+='<br/><br/>';out+='<strong>2. Bench Health</strong>'+tbl(['Metric','Count','Note'],[['Total on Bench','<strong>'+res.length+'</strong>','All statuses'],['Available',tag(avail.length,'green'),'Ready now'],['In Training',tag(res.filter(function(r){return getStatus(r)==='In Training';}).length,'amber'),'Upskilling'],['On Leave',tag(res.filter(function(r){return getStatus(r)==='On Leave';}).length,'grey'),'Maternity/other'],['🚨 Critical (1Y+)',tag(crit.length,'maroon'),'Immediate action'],['🔴 Action (6M+)',tag(action.length,'red'),'Review this week'],['⚠ Watch (3M+)',tag(watch.length,'amber'),'Check-in needed'],['Learner Pool',tag(learner.length,'amber'),'Day 60 review'],['Innovation Pool',tag(innov.length,'purple'),'No time limit']]);if(crit.length||action.length){out+='<br/><strong>3. Aging Alerts</strong><br/>';if(crit.length){out+=tag('🚨 CRITICAL','maroon')+'<br/>';crit.forEach(function(r){out+='• <strong>'+getName(r)+'</strong> — '+getProfile(r)+' — '+getBenchDays(r)+' days<br/>';});}if(action.length){out+='<br/>'+tag('🔴 ACTION','red')+'<br/>';action.forEach(function(r){out+='• <strong>'+getName(r)+'</strong> — '+getProfile(r)+' — '+getBenchDays(r)+' days<br/>';});}}out+='<br/><strong>4. Pool Status</strong><br/>Learner Pool: <strong>'+learner.length+'</strong> ('+pend.length+' pending reviews) &nbsp;·&nbsp; Innovation Pool: <strong>'+innov.length+'</strong><br/><br/>';if(open.length)out+='<strong>5. Open Demands</strong>'+tbl(['ID','Project','Role','Priority','Mapped'],open.map(function(d){var p=d['Priority']==='Critical'?tag(d['Priority'],'maroon'):d['Priority']==='High'?tag(d['Priority'],'red'):tag(d['Priority'],'amber');return[d['Demand ID']||'',d['Account / Project']||'',d['Role Required']||'',p,d['Mapped Resource']||tag('Unmapped','red')];}));out+='<br/><strong>6. Top Risks</strong><br/>';var risks=[];if(crit.length)risks.push('🚨 '+crit.length+' resource'+(crit.length>1?'s':'')+' exceed 1 year on bench');if(pend.length)risks.push('📋 '+pend.length+' Learner Pool review'+(pend.length>1?'s':'')+' pending decision');if(critD.length)risks.push('🎯 '+critD.length+' Critical demand'+(critD.length>1?'s':'')+' without mapped resource');if(maxR&&maxD>300)risks.push('⏱ '+getName(maxR)+' — '+maxD+' days, longest in team');if(!risks.length)risks.push('No major risks this week');risks.forEach(function(r){out+='• '+r+'<br/>';});out+='<br/><strong>7. Recommended Actions</strong><br/>';if(crit.length)out+='• <strong>Immediate:</strong> Escalate '+crit.slice(0,3).map(getName).join(', ')+' — placement or exit plan<br/>';if(avail.length)out+='• <strong>This week:</strong> Map '+avail.slice(0,3).map(getName).join(', ')+' to open demands<br/>';if(pend.length)out+='• <strong>This week:</strong> Complete Day 60 reviews for Learner Pool<br/>';out+='• <strong>Ongoing:</strong> Update Skill Matrix, review Innovation Pool for GenAI upskilling<br/>';return out;}
+
+function answerLongest(){var res=getResources().filter(function(r){return getStatus(r)!=='Allocated';}).sort(function(a,b){return(getBenchDays(b)||0)-(getBenchDays(a)||0);}).slice(0,10);var out='<strong>Top 10 Longest on Bench</strong><br/><br/>';out+=tbl(['#','Emp ID','Name','Profile','Days','Status','Aging'],res.map(function(r,i){return[i+1,r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),'<strong>'+(getBenchDays(r)||'—')+'d</strong>',tagStatus(getStatus(r)),tagAging(r)];}));if(res[0])out+='<div class="rec-box"><strong>💡 Top priority:</strong> <strong>'+getName(res[0])+'</strong> at <strong>'+getBenchDays(res[0])+' days</strong> — '+(getBenchDays(res[0])>=365?'Critical. Escalate immediately.':'Monitor and ensure allocation plan is active.')+'</div>';return out;}
+
+
+function answerPerson(r){var d=getBenchDays(r);var out='<strong>Profile: '+getName(r)+'</strong> ('+r['Emp ID']+')<br/><br/>';out+=tbl(['Field','Details'],[['Profile / Role',getProfile(r)],['Department',r['Department']||'—'],['Experience',getExp(r)+' years'],['Primary Skill',getSkills(r)],['Secondary Skills',r['Secondary Skills']||'—'],['Certifications',r['Certifications']||'—'],['Status',tagStatus(getStatus(r))],['Bench Type',tagPool(getBenchType(r))],['Bench Start Date',r['Bench Start Date']||'—'],['Days on Bench',d!==null?'<strong>'+d+' days</strong>':'—'],['Aging Alert',tagAging(r)],['Skill Readiness',getReadiness(r)+'%'],['Preferred Role',r['Preferred Role']||'—'],['Location',r['Location']||'—'],['Remarks',getRemarks(r)||'—']]);var action=d===null?'Check bench start date.':d>=365?'🚨 Critical — escalate immediately.':d>=180?'🔴 Schedule manager review this week.':d>=90?'⚠ Schedule check-in.':'✅ Within safe window.';out+='<div class="rec-box"><strong>💡 Recommended action:</strong> '+action+'</div>';return out;}
+
+function answerBySkill(skills){var res=getResources();var matched=res.filter(function(r){var allSkills=(getSkills(r)+' '+(r['Secondary Skills']||'')+(r['Certifications']||'')).toLowerCase();return skills.some(function(sk){return allSkills.includes(sk);});}).sort(function(a,b){return(getBenchDays(b)||0)-(getBenchDays(a)||0);});if(!matched.length)return'<strong>No resources found with '+skills.join('/')+' skills.</strong><br/>Consider upskilling available bench resources.';var out='<strong>'+matched.length+' resource'+(matched.length>1?'s':'')+' with '+skills.join(' / ')+' skills</strong><br/><br/>';out+=tbl(['Emp ID','Name','Profile','Status','Days','Primary Skill','Readiness'],matched.map(function(r){return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),tagStatus(getStatus(r)),(getBenchDays(r)||'—')+'d',getSkills(r),getReadiness(r)+'%'];}));var avail=matched.filter(isAvailable);out+='<div class="rec-box"><strong>💡 '+avail.length+' available now</strong>'+(avail.length?': '+avail.map(getName).join(', '):' — all in training or on leave.')+'</div>';return out;}
+
+function answerCount(q){var res=getResources(),avail=res.filter(isAvailable).length,crit=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=365&&getStatus(r)!=='Allocated';}).length,trng=res.filter(function(r){return getStatus(r)==='In Training';}).length,leave=res.filter(function(r){return getStatus(r)==='On Leave';}).length;var out='<strong>Bench Count Summary</strong><br/><br/>';out+=tbl(['Category','Count'],[['Total on bench','<strong>'+res.length+'</strong>'],['Available / Partial Available',tag(avail,'green')],['In Training',tag(trng,'amber')],['On Leave',tag(leave,'grey')],['🚨 Critical aging (1Y+)',tag(crit,'maroon')],['Learner Pool',tag(res.filter(function(r){return getBenchType(r)==='Learner Pool';}).length,'amber')],['Innovation Pool',tag(res.filter(function(r){return getBenchType(r)==='Innovation Pool';}).length,'purple')]]);return out;}
+
+function answerByStatus(status){var res=getResources().filter(function(r){return getStatus(r).toLowerCase()===status.toLowerCase();});if(!res.length)return'<strong>No resources with status: '+status+'</strong>';var out='<strong>'+res.length+' resource'+(res.length>1?'s':'')+' — '+status+'</strong><br/><br/>';out+=tbl(['Emp ID','Name','Profile','Days','Pool','Remarks'],res.map(function(r){return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),(getBenchDays(r)||'—')+'d',tagPool(getBenchType(r)),getRemarks(r).substring(0,50)];}));return out;}
+
+function answerByLocation(city){var res=getResources().filter(function(r){return(r['Location']||'').toLowerCase().includes(city);});if(!res.length)return'<strong>No resources in '+city+'.</strong>';var out='<strong>'+res.length+' resource'+(res.length>1?'s':'')+' in '+city.charAt(0).toUpperCase()+city.slice(1)+'</strong><br/><br/>';out+=tbl(['Emp ID','Name','Profile','Status','Days','Skills'],res.map(function(r){return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),tagStatus(getStatus(r)),(getBenchDays(r)||'—')+'d',getSkills(r)];}));return out;}
+
+function answerByExperience(q){var res=getResources(),filtered;if(/junior|fresher/.test(q))filtered=res.filter(function(r){return getExp(r)<=2;});else if(/senior|lead/.test(q))filtered=res.filter(function(r){return getExp(r)>=8;});else filtered=res.sort(function(a,b){return getExp(b)-getExp(a);});if(!filtered.length)return'<strong>No resources found for that experience level.</strong>';var out='<strong>'+filtered.length+' resources by experience</strong><br/><br/>';out+=tbl(['Emp ID','Name','Profile','Exp','Status','Skills'],filtered.sort(function(a,b){return getExp(b)-getExp(a);}).map(function(r){return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),getExp(r)+'Y',tagStatus(getStatus(r)),getSkills(r)];}));return out;}
+
+function answerPoolList(poolType){var res=getResources().filter(function(r){return getBenchType(r)===poolType;});if(!res.length)return'<strong>No resources in '+poolType+'.</strong>';var out='<strong>'+res.length+' resources in '+poolType+'</strong><br/>';out+=poolType==='Learner Pool'?'<em style="font-size:12px;color:var(--muted)">3-month max · Day 60 review</em>':'<em style="font-size:12px;color:var(--muted)">No duration limit · High allocation priority</em>';out+='<br/><br/>';out+=tbl(['Emp ID','Name','Profile','Days','Status','Pool Status'],res.map(function(r){return[r['Emp ID'],'<strong>'+getName(r)+'</strong>',getProfile(r),(getBenchDays(r)||'—')+'d',tagStatus(getStatus(r)),r['Pool Status']||'—'];}));return out;}
+
+function answerFallback(q){var res=getResources(),avail=res.filter(isAvailable).length,crit=res.filter(function(r){var d=getBenchDays(r);return d!==null&&d>=365&&getStatus(r)!=='Allocated';}).length;return'<strong>Here\'s what I can answer:</strong><br/><br/>• <strong>By name</strong> — "Tell me about Deepak" · "Status of Karan"<br/>• <strong>By skill</strong> — "Who knows Python?" · "Any AWS resources?"<br/>• <strong>By status</strong> — "Who is on leave?" · "Who is in training?"<br/>• <strong>By location</strong> — "Resources in Pune" · "Who is in Mumbai?"<br/>• <strong>Availability</strong> — "Who is available for allocation?"<br/>• <strong>Aging</strong> — "Show critical aging resources"<br/>• <strong>Pool</strong> — "Who is in Innovation Pool?"<br/>• <strong>Demand</strong> — "Match bench to open demands"<br/>• <strong>Reports</strong> — "Generate leadership report"<br/><br/>'+tag(avail+' available','green')+' '+tag(crit+' critical','maroon')+' '+tag(res.length+' total','blue');}
+
+function routeQuery(q){
+  var l=q.toLowerCase().trim();
+  var res=getResources();
+  var personMatch=res.filter(function(r){var n=getName(r).toLowerCase();return n.split(' ').some(function(part){return part.length>2&&l.includes(part);});});
+  if(personMatch.length===1)return answerPerson(personMatch[0]);
+  if(personMatch.length>1&&/about|status|details|info|who is|update|profile/.test(l))return answerPerson(personMatch[0]);
+  var skillWords=['react','node','java','python','sql','aws','azure','devops','kubernetes','angular','selenium','power bi','tableau','figma','django','genai','llm','data engineer','agile','scrum','jira'];
+  var askedSkill=skillWords.filter(function(sk){return l.includes(sk);});
+  if(askedSkill.length&&/who|any|find|show|list|have|know|with|having|resource/.test(l))return answerBySkill(askedSkill);
+  if(/how many|count|total|number of/.test(l))return answerCount(l);
+  if(/on leave|maternity/.test(l))return answerByStatus('On Leave');
+  if(/shadow/.test(l))return answerByStatus('Shadow Mode');
+  if(/in training|training now|upskil/.test(l))return answerByStatus('In Training');
+  if(/allocated|deployed|on project/.test(l))return answerByStatus('Allocated');
+  if(/avail|ready|allocat|who can|free|idle|not on project|bench.*now/.test(l))return answerAvailable();
+  if(/longest|rank|top \d|most days/.test(l))return answerLongest();
+  if(/aging|ageing|critical|overdue|1 year|one year|6 month|six month|3 month|three month|how long|bench duration|bench.*long|long.*bench/.test(l))return answerAging();
+  if(/pool|review|learner|innov|day 60|promote|exit|release/.test(l))return answerReviews();
+  if(/demand|match|map|open role|project need|pipeline|fill|vacant/.test(l))return answerDemand();
+  if(/skill|gap|matrix|proficien|upskill|certif|training need|missing|weak/.test(l))return answerSkills();
+  if(/report|summary|leadership|weekly|overview|brief|status update|snapshot/.test(l))return answerReport();
+  var cities=['mumbai','pune','bengaluru','bangalore','hyderabad','chennai','delhi','remote'];
+  var city=cities.find(function(c){return l.includes(c);});
+  if(city)return answerByLocation(city);
+  if(/senior|junior|fresher|exp|experienced/.test(l))return answerByExperience(l);
+  if(/innovation pool/.test(l))return answerPoolList('Innovation Pool');
+  if(/learner pool/.test(l))return answerPoolList('Learner Pool');
+  return answerFallback(q);
+}
+
+function runQuery(type){if(!BD)return;switchView('chat');var fns={aging:answerAging,reviews:answerReviews,available:answerAvailable,demand:answerDemand,report:answerReport,skills:answerSkills};var labels={aging:'Aging Bench Alerts',reviews:'Pool Review Status',available:'Available Resources',demand:'Demand Matching',report:'Leadership Report',skills:'Skill Gap Analysis'};addUser(labels[type]||type);showTyping();setTimeout(function(){removeTyping();addAI(fns[type]?fns[type]():answerWelcome());},350);}
+
+// ── Chat UI ───────────────────────────────────────────────────────────
+function switchView(v){if(!BD)return;['chat','dash'].forEach(function(n){document.getElementById(n+'View').classList.toggle('hidden',n!==v);document.getElementById('nav-'+n).classList.toggle('active',n===v);});}
+function addMsg(role,html){var w=document.getElementById('chatMsgs'),d=document.createElement('div');d.className='msg '+role;d.innerHTML='<div class="av '+role+'">'+(role==='ai'?'B':'TH')+'</div><div class="bub">'+html+'</div>';w.appendChild(d);w.scrollTop=w.scrollHeight;}
+function addAI(h){addMsg('ai',h);}
+function addUser(t){addMsg('user',t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));}
+function showTyping(){var w=document.getElementById('chatMsgs'),d=document.createElement('div');d.className='msg ai';d.id='typing';d.innerHTML='<div class="av ai">B</div><div class="bub"><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';w.appendChild(d);w.scrollTop=w.scrollHeight;}
+function removeTyping(){var el=document.getElementById('typing');if(el)el.remove();}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+function sendChip(el){document.getElementById('chatInput').value=el.textContent;sendMessage();}
+function sendMessage(){var inp=document.getElementById('chatInput'),text=inp.value.trim();if(!text)return;if(!BD){addAI('Please load your Excel file first using the upload button.');return;}inp.value='';inp.style.height='auto';addUser(text);showTyping();setTimeout(function(){removeTyping();addAI(routeQuery(text));},350);}
+function exportPDF(){if(!BD){alert('Load your data first.');return;}switchView('dash');setTimeout(function(){window.print();},300);}
+
+</script>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(event)" style="display:none;position:fixed;top:-100px;"/>
+</body>
+</html>
